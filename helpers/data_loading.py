@@ -194,6 +194,9 @@ def _load_eta_scatter_from_dir_ours(
 
     n_freqs = len(wavenumbers)
 
+    # OOT 2024-04-19: Sort the wavenumbers to ensure they are entered in decreasing order
+    wavenumbers = sorted(wavenumbers, key=float, reverse=True)
+
     scatter_eta_tuples = [
         _concat_all_files_in_dir_ours(dir_frmt.format(w), truncate_num)
         for w in wavenumbers
@@ -209,7 +212,8 @@ def _load_eta_scatter_from_dir_ours(
     # Scatter_all should have shape (n_samples, n_pixels, n_pixels, n_freqs)
     scatter_all = np.concatenate(
         [x[0][:, :, :, None] for x in scatter_eta_tuples], axis=-1
-    )
+    ).transpose(0,2,1,3) # OOT 2024-04-19: flip the s and r dimensions since we save (r,s) but need (s,r)
+
     # Eta_all should have shape (n_samples, n_pixels, n_pixels)
     eta_all = scatter_eta_tuples[0][1]
 
