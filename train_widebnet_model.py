@@ -17,7 +17,7 @@ from helpers.data_loading import load_data_from_dir
 
 def setup_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    # Data paths
+    # Data paths and options
     parser.add_argument(
         "-train_data_dir", help="Directory containing training data", required=True
     )
@@ -26,6 +26,10 @@ def setup_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-test_data_dir", help="Directory containing test data", required=True
+    )
+    parser.add_argument("-wavenumbers", nargs="+", help="Wavenumbers to use")
+    parser.add_argument(
+        "-truncate_num", help="Number of samples to truncate to", type=int, default=None
     )
 
     # Model architecture parameters
@@ -100,13 +104,11 @@ def main(args: argparse.Namespace) -> None:
         L=args.L,
         s=args.s,
         blur_sigma=args.blur_sigma,
+        wavenumbers=args.wavenumbers,
+        truncate_num=args.truncate_num,
     )
     print("Scatter train shape:", scatter_train.shape)
     print("Eta train shape:", eta_train.shape)
-
-    # # pickle scatter_train and eta_train into the workdir
-    # np.save(os.path.join(workdir, "scatter_train.npy"), scatter_train)
-    # np.save(os.path.join(workdir, "eta_train.npy"), eta_train)
 
     # Load validation data if path is specified
     if args.val_data_dir is not None:
@@ -121,6 +123,8 @@ def main(args: argparse.Namespace) -> None:
             eta_std=eta_std_train,
             scatter_means=scatter_means_train,
             scatter_stds=scatter_stds_train,
+            wavenumbers=args.wavenumbers,
+            truncate_num=args.truncate_num,
         )
     else:
         scatter_val = None
@@ -139,11 +143,10 @@ def main(args: argparse.Namespace) -> None:
         eta_std=eta_std_train,
         scatter_means=scatter_means_train,
         scatter_stds=scatter_stds_train,
+        wavenumbers=args.wavenumbers,
+        truncate_num=args.truncate_num,
     )
 
-    # save scatter_test and eta_test into the workdir
-    # np.save(os.path.join(workdir, "scatter_test.npy"), scatter_test)
-    # np.save(os.path.join(workdir, "eta_test.npy"), eta_test)
     # Compile the model
     core_module, Model = compile_widebnet(
         L=args.L, s=args.s, r=args.r, input_shape=scatter_train[0].shape

@@ -106,12 +106,12 @@ def test_model(
                 )
             )
 
-    pixelwise_sq_loss_vec = np.array(pixelwise_sq_loss_vals).flatten()
+    pixelwise_sq_loss_vec = np.concatenate(pixelwise_sq_loss_vals).flatten()
     print(
         "Mean pixelwise squared loss on test dataset:", np.mean(pixelwise_sq_loss_vec)
     )
 
-    imagewise_rel_loss_vec = np.array(imagewise_rel_loss_vals).flatten()
+    imagewise_rel_loss_vec = np.concatenate(imagewise_rel_loss_vals).flatten()
     print(
         "Mean imagewise relative loss on test dataset:", np.mean(imagewise_rel_loss_vec)
     )
