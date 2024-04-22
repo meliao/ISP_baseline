@@ -126,7 +126,8 @@ def main(args: argparse.Namespace) -> None:
     print("Workdir:", workdir)
     os.makedirs(workdir, exist_ok=True)
 
-    fp_results = os.path.join(workdir, "results.txt")
+    fp_results_train = os.path.join(workdir, "train_results.txt")
+    fp_results_eval = os.path.join(workdir, "eval_results.txt")
 
     # Load train data
     print("Loading train data")
@@ -213,7 +214,8 @@ def main(args: argparse.Namespace) -> None:
         eta_eval=eta_val,
         scatter_eval=scatter_val,
         use_wandb=args.use_wandb,
-        results_fp=fp_results,
+        results_fp_train=fp_results_train,
+        results_fp_eval=fp_results_eval,
     )
 
     # Test the model
@@ -224,8 +226,9 @@ def main(args: argparse.Namespace) -> None:
         core_module=core_module,
         std_eta=eta_std_train,
         mean_eta=eta_mean_train,
-        results_fp=fp_results,
+        results_fp_eval=fp_results_eval,
     )
+    print("FinishedFinished")
 
 
 if __name__ == "__main__":

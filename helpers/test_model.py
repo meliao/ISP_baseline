@@ -125,7 +125,7 @@ def test_model(
     scatter_test: np.ndarray,
     eta_test: np.ndarray,
     workdir: str,
-    results_fp: str,
+    results_fp_eval: str,
     core_module: WideBNet.WideBNetModel,
     std_eta: float,
     mean_eta: float,
@@ -133,7 +133,7 @@ def test_model(
 
     ## Find the checkpoint with the lowest validation error.
     best_line, best_val = extract_line_by_field(
-        results_fp, "eval_rrmse_mean", selection_mode="min"
+        results_fp_eval, "eval_rrmse_mean", selection_mode="min"
     )
     best_step = best_line["step"]
     print(

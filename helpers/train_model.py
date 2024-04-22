@@ -107,6 +107,25 @@ class ValidationCallback(templates.Callback):
             wandb.log(out_dd)
 
 
+class TrainCallback(templates.Callback):
+    def __init__(self, use_wandb: bool, out_fp: str) -> None:
+        self.use_wandb = use_wandb
+        self.out_fp = out_fp
+
+    def on_train_batches_end(self, trainer, train_metrics):
+        cur_step = trainer.train_state.int_step
+        train_loss = train_metrics["train_loss"].item()
+        train_loss_std = train_metrics["train_loss_std"].item()
+        out_dd = {
+            "step": cur_step,
+            "train_loss": train_loss,
+            "train_loss_std": train_loss_std,
+        }
+        write_result_to_file(self.out_fp, **out_dd)
+        if self.use_wandb:
+            wandb.log(out_dd)
+
+
 def train_model(
     init_value: float,
     transition_steps: int,
@@ -117,7 +136,8 @@ def train_model(
     workdir: str,
     eta_train: np.ndarray,
     scatter_train: np.ndarray,
-    results_fp: str,
+    results_fp_train: str,
+    results_fp_eval: str,
     use_wandb: bool,
     eta_eval: np.ndarray = None,
     scatter_eval: np.ndarray = None,
@@ -200,6 +220,7 @@ def train_model(
                     # max_to_keep=max_ckpt_to_keep,
                 ),
             ),
-            ValidationCallback(use_wandb=use_wandb, out_fp=results_fp),
+            ValidationCallback(use_wandb=use_wandb, out_fp=results_fp_eval),
+            TrainCallback(use_wandb=use_wandb, out_fp=results_fp_train),
         ),
     )
