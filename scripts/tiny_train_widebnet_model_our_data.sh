@@ -8,7 +8,9 @@ python train_widebnet_model.py \
     -train_data_dir $DIR_OURDATA_TRAIN \
     -test_data_dir $DIR_OURDATA_TEST \
     -workdir $WORKDIR \
-    -num_train_steps 2005 \
+    -num_train_steps 1032 \
     -truncate_num 531 \
-    -wavenumbers 4 8 16 \
-    -s 12
+    -wavenumbers  8 16 \
+    -s 24 \
+    -L 3 \
+    --use_wandb

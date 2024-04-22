@@ -82,7 +82,10 @@ def setup_args() -> argparse.Namespace:
         "-batch_size", help="Batch size for training", type=int, default=32
     )
     parser.add_argument(
-        "-num_train_steps", help="Number of training steps", type=int, default=98_438
+        "-num_train_steps",
+        help="Number of training steps. Defaults to 150 passes through the full dataset.",
+        type=int,
+        default=None,
     )
 
     # Other hyperparams
@@ -145,6 +148,10 @@ def main(args: argparse.Namespace) -> None:
     )
     print("Scatter train shape:", scatter_train.shape)
     print("Eta train shape:", eta_train.shape)
+
+    # Default to using 150 passes through the dataset
+    if args.num_train_steps is None:
+        args.num_train_steps = int(150 * eta_train.shape[0] / args.batch_size)
 
     # Load validation data if path is specified
     if args.val_data_dir is not None:
@@ -217,6 +224,7 @@ def main(args: argparse.Namespace) -> None:
         core_module=core_module,
         std_eta=eta_std_train,
         mean_eta=eta_mean_train,
+        results_fp=fp_results,
     )
 
 

@@ -163,8 +163,12 @@ def train_model(
     else:
         eval_dataset = dataset
 
-    ckpt_interval = 2000  # @param
-    max_ckpt_to_keep = 3  # @param
+    n_train = eta_train.shape[0]
+    n_steps_per_epoch = n_train // batch_size
+    ckpt_interval = 5 * n_steps_per_epoch  # We are checkpointing every 5 epochs.
+
+    # ckpt_interval = 2000  # @param
+    # max_ckpt_to_keep = 3  # @param
 
     trainer = _get_trainer(
         init_value=init_value,
@@ -179,9 +183,9 @@ def train_model(
         workdir=workdir,
         total_train_steps=num_train_steps,
         metric_writer=metric_writers.create_default_writer(workdir, asynchronous=False),
-        metric_aggregation_steps=100,
+        metric_aggregation_steps=ckpt_interval,
         eval_dataloader=eval_dataset,
-        eval_every_steps=1000,
+        eval_every_steps=ckpt_interval,
         num_batches_per_eval=2,
         callbacks=(
             templates.TqdmProgressBar(
@@ -193,7 +197,7 @@ def train_model(
                 base_dir=workdir,
                 options=ocp.CheckpointManagerOptions(
                     save_interval_steps=ckpt_interval,
-                    max_to_keep=max_ckpt_to_keep,
+                    # max_to_keep=max_ckpt_to_keep,
                 ),
             ),
             ValidationCallback(use_wandb=use_wandb, out_fp=results_fp),

@@ -10,4 +10,5 @@ python train_widebnet_model.py \
     -workdir $WORKDIR \
     -truncate_num 3333 \
     -wavenumbers 4 8 16 \
-    -s 12
+    -s 12 \
+    --use_wandb
