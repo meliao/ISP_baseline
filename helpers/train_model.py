@@ -22,6 +22,7 @@ from scipy.ndimage import gaussian_filter
 from swirl_dynamics import templates
 from swirl_dynamics.lib import metrics
 from pysteps.utils.spectral import rapsd
+import wandb
 
 # Local repo code
 from src import models
@@ -59,6 +60,53 @@ def _get_trainer(
     return trainer
 
 
+def write_result_to_file(fp: str, missing_str: str = "", **trial) -> None:
+    """Write a line to a tab-separated file saving the results of a single
+        trial.
+    Parameters
+    ----------
+    fp : str
+        Output filepath
+    missing_str : str
+        (Optional) What to print in the case of a missing trial value
+    **trial : dict
+        One trial result. Keys will become the file header
+    Returns
+    -------
+    None
+    """
+    header_lst = list(trial.keys())
+    header_lst.sort()
+    if not os.path.isfile(fp):
+        header_line = "\t".join(header_lst) + "\n"
+        with open(fp, "w") as f:
+            f.write(header_line)
+    trial_lst = [str(trial.get(i, missing_str)) for i in header_lst]
+    trial_line = "\t".join(trial_lst) + "\n"
+    with open(fp, "a") as f:
+        f.write(trial_line)
+
+
+class ValidationCallback(templates.Callback):
+
+    def __init__(self, use_wandb: bool, out_fp: str) -> None:
+        self.use_wandb = use_wandb
+        self.out_fp = out_fp
+
+    def on_eval_batches_end(self, trainer, eval_metrics):
+        cur_step = trainer.train_state.int_step
+        eval_rrmse_mean = eval_metrics["eval_rrmse_mean"].item()
+        eval_rrmse_std = eval_metrics["eval_rrmse_std"].item()
+        out_dd = {
+            "step": cur_step,
+            "eval_rrmse_mean": eval_rrmse_mean,
+            "eval_rrmse_std": eval_rrmse_std,
+        }
+        write_result_to_file(self.out_fp, **out_dd)
+        if self.use_wandb:
+            wandb.log(out_dd)
+
+
 def train_model(
     init_value: float,
     transition_steps: int,
@@ -69,6 +117,8 @@ def train_model(
     workdir: str,
     eta_train: np.ndarray,
     scatter_train: np.ndarray,
+    results_fp: str,
+    use_wandb: bool,
     eta_eval: np.ndarray = None,
     scatter_eval: np.ndarray = None,
 ) -> None:
@@ -84,6 +134,8 @@ def train_model(
         workdir (str): Directory to save training checkpoints.
         eta_train (np.ndarray): Training data for eta.
         scatter_train (np.ndarray): Training data for scatter.
+        results_fp (str): Where to save the result on the validation set.
+        use_wandb (bool): Whether to use wandb for logging.
         eta_eval (np.ndarray, Optional): Evaluation data for eta. If not specified, validation is performed on train set.
         scatter_eval (np.ndarray, Optional): Evaluation data for scatter. If not specified, validation is performed on train set.
     """
@@ -140,8 +192,10 @@ def train_model(
             templates.TrainStateCheckpoint(
                 base_dir=workdir,
                 options=ocp.CheckpointManagerOptions(
-                    save_interval_steps=ckpt_interval, max_to_keep=max_ckpt_to_keep
+                    save_interval_steps=ckpt_interval,
+                    max_to_keep=max_ckpt_to_keep,
                 ),
             ),
+            ValidationCallback(use_wandb=use_wandb, out_fp=results_fp),
         ),
     )

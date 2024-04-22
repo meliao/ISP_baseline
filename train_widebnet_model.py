@@ -3,16 +3,34 @@ import argparse
 import os
 import logging
 import sys
+from typing import Any, Dict
+import hashlib
 
 # Third party packages
 import numpy as np
 import jax
+import wandb
 
 # Local repo code
 from helpers.compile_widebnet import compile_widebnet
 from helpers.train_model import train_model
 from helpers.test_model import test_model
 from helpers.data_loading import load_data_from_dir
+
+
+def hash_dict(dictionary: Dict[str, Any]) -> str:
+    """Create a hash for a dictionary."""
+    dict2hash = ""
+
+    for k in sorted(dictionary.keys()):
+        if isinstance(dictionary[k], dict):
+            v = hash_dict(dictionary[k])
+        else:
+            v = dictionary[k]
+
+        dict2hash += "%s_%s_" % (str(k), str(v))
+
+    return hashlib.md5(dict2hash.encode()).hexdigest()
 
 
 def setup_args() -> argparse.Namespace:
@@ -31,7 +49,12 @@ def setup_args() -> argparse.Namespace:
     parser.add_argument(
         "-truncate_num", help="Number of samples to truncate to", type=int, default=None
     )
-
+    parser.add_argument(
+        "-truncate_num_val",
+        help="Number of samples to truncate the validation set to",
+        type=int,
+        default=None,
+    )
     # Model architecture parameters
     parser.add_argument("-L", help="Number of levels in the model", default=4, type=int)
     parser.add_argument("-s", help="Size parameter for the model", default=5, type=int)
@@ -77,6 +100,17 @@ def setup_args() -> argparse.Namespace:
     parser.add_argument(
         "-workdir", help="Directory to save model checkpoints and logs", required=True
     )
+    parser.add_argument(
+        "--use_wandb", action="store_true", help="Whether to use wandb for logging"
+    )
+    parser.add_argument(
+        "-wandb_project_name",
+        help="Name of the wandb project",
+        default="2024-04-22_widebnet_hyperparam_experiments",
+    )
+    parser.add_argument(
+        "-wandb_entity", help="Wandb entity", default="recursive-linearization"
+    )
 
     args = parser.parse_args()
     return args
@@ -88,6 +122,8 @@ def main(args: argparse.Namespace) -> None:
     workdir = os.path.abspath(args.workdir)
     print("Workdir:", workdir)
     os.makedirs(workdir, exist_ok=True)
+
+    fp_results = os.path.join(workdir, "results.txt")
 
     # Load train data
     print("Loading train data")
@@ -124,7 +160,7 @@ def main(args: argparse.Namespace) -> None:
             scatter_means=scatter_means_train,
             scatter_stds=scatter_stds_train,
             wavenumbers=args.wavenumbers,
-            truncate_num=args.truncate_num,
+            truncate_num=args.truncate_num_val,
         )
     else:
         scatter_val = None
@@ -169,6 +205,8 @@ def main(args: argparse.Namespace) -> None:
         scatter_train=scatter_train,
         eta_eval=eta_val,
         scatter_eval=scatter_val,
+        use_wandb=args.use_wandb,
+        results_fp=fp_results,
     )
 
     # Test the model
@@ -184,4 +222,24 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     args = setup_args()
-    main(args)
+
+    id_hash = hash_dict(vars(args))
+    args.hash = id_hash
+
+    if args.use_wandb:
+        # print(vars(a))
+        # print(id_hash)
+        with wandb.init(
+            id=id_hash,
+            project=args.wandb_project_name,
+            entity=args.wandb_entity,
+            config=vars(args),
+            mode="online",
+            reinit=True,
+            resume=None,
+            settings=wandb.Settings(start_method="fork"),
+        ) as wandbrun:
+            main(args)
+
+    else:
+        main(args)
