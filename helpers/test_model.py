@@ -212,12 +212,12 @@ def test_model(
     print("Relative L2 error std on test dataset:", np.std(relative_l2_error_vec))
 
     summary_dict = {
-        "mean_pixelwise_sq_loss": np.mean(pixelwise_sq_loss_vec),
-        "stddev_pixelwise_sq_loss": np.std(pixelwise_sq_loss_vec),
-        "mean_imagewise_rel_loss": np.mean(imagewise_rel_loss_vec),
-        "stddev_imagewise_rel_loss": np.std(imagewise_rel_loss_vec),
-        "mean_relative_l2_error": np.mean(relative_l2_error_vec),
-        "stddev_relative_l2_error": np.std(relative_l2_error_vec),
+        "mean_pixelwise_sq_loss": np.mean(pixelwise_sq_loss_vec).item(),
+        "stddev_pixelwise_sq_loss": np.std(pixelwise_sq_loss_vec).item(),
+        "mean_imagewise_rel_loss": np.mean(imagewise_rel_loss_vec).item(),
+        "stddev_imagewise_rel_loss": np.std(imagewise_rel_loss_vec).item(),
+        "mean_relative_l2_error": np.mean(relative_l2_error_vec).item(),
+        "stddev_relative_l2_error": np.std(relative_l2_error_vec).item(),
         "best_step": best_step,
     }
 

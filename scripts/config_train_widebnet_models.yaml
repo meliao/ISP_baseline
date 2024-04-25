@@ -8,7 +8,7 @@ definitions:
   default_arguments:
     logs_folder: logs/2024-04-22
     partition: "willett-contrib"
-    gpus: 1
+    gpus: "a40:1"
     mem: "50G"
     job_walltime: "4:00:00"
     exclude_gpu: "aa001,aa002"
@@ -45,7 +45,7 @@ arguments:
 
   - !Range
     name: r
-    values: [ 2, 3, 5, 10 ]
+    values: [ 2, 3, 5, 10, 15, 20, 30, 50]
     prefix: "-r"
     metadata_rules: [ !SaveValueInMetadata { path: r } ]
 
@@ -69,13 +69,13 @@ arguments:
 
   - !Range
     name: batch_size
-    values: [16, 32, 64 ]
+    values: [16, 32] #, 64 ]
     prefix: "-batch_size"
     metadata_rules: [ !SaveValueInMetadata { path: batch_size }]
   
   - !ArgumentFromMetadata
     name: job_name
-    format_rule: "2024-04-22_train_WideBNet_3_freqs_{r}_{init_value}_{decay_rate}_{blur_sigma}_{batch_size}"
+    format_rule: "2024-04-22_train_WideBNet_3_freq_{r}_{init_value}_{decay_rate}_{blur_sigma}_{batch_size}"
     sources: [ 
       {path: r, destination: r},
       {path: init_value, destination: init_value},

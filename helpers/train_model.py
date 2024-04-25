@@ -28,6 +28,7 @@ import wandb
 from src import models
 from src import trainers
 from WideBNetModel import WideBNet, morton
+from helpers.test_model import extract_line_by_field
 
 
 def _get_trainer(
@@ -92,6 +93,25 @@ class ValidationCallback(templates.Callback):
     def __init__(self, use_wandb: bool, out_fp: str) -> None:
         self.use_wandb = use_wandb
         self.out_fp = out_fp
+        workdir = os.path.dirname(out_fp)
+
+        self.current_best_val = np.inf
+        self.current_best_step = None
+        self.checkpoint_dir = os.path.join(workdir, "checkpoints")
+
+    def _remove_old_best_checkpoint_dir(self, previous_best_step: int) -> None:
+        if previous_best_step is not None:
+            previous_best_checkpoint_dir = os.path.join(
+                self.checkpoint_dir, str(previous_best_step)
+            )
+            # print(
+            #     "Checking for presence of previous best checkpoint: ",
+            #     previous_best_checkpoint_dir,
+            # )
+            if os.path.exists(previous_best_checkpoint_dir):
+                cmd = f"rm -r {previous_best_checkpoint_dir}"
+                # print("Running command: ", cmd)
+                os.system(cmd)
 
     def on_eval_batches_end(self, trainer, eval_metrics):
         cur_step = trainer.train_state.int_step
@@ -105,6 +125,13 @@ class ValidationCallback(templates.Callback):
         write_result_to_file(self.out_fp, **out_dd)
         if self.use_wandb:
             wandb.log(out_dd)
+
+        if eval_rrmse_mean < self.current_best_val:
+            self._remove_old_best_checkpoint_dir(self.current_best_step)
+            self.current_best_val = eval_rrmse_mean
+            self.current_best_step = cur_step
+        else:
+            self._remove_old_best_checkpoint_dir(cur_step)
 
 
 class TrainCallback(templates.Callback):
