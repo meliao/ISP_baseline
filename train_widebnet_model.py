@@ -46,6 +46,8 @@ def setup_args() -> argparse.Namespace:
         "-test_data_dir", help="Directory containing test data", required=True
     )
     parser.add_argument("-wavenumbers", nargs="+", help="Wavenumbers to use")
+    parser.add_argument("-wavenumber_low", type=float, default=0)
+    parser.add_argument("-wavenumber_high", type=float)
     parser.add_argument(
         "-truncate_num", help="Number of samples to truncate to", type=int, default=None
     )
@@ -125,6 +127,11 @@ def main(args: argparse.Namespace) -> None:
 
     fp_results = os.path.join(workdir, "results.txt")
 
+    args.wavenumber_high = args.wavenumber_high \
+        if args.wavenumber_high is not None else max(map(float, args.wavenumbers))
+    # Sort the wavenumbers in descending order
+    wavenumber_list_desc = sorted(list(map(float, args.wavenumbers)), key=float, reverse=True)
+
     # Load train data
     print("Loading train data")
     (
@@ -185,7 +192,11 @@ def main(args: argparse.Namespace) -> None:
 
     # Compile the model
     core_module, Model = compile_widebnet(
-        L=args.L, s=args.s, r=args.r, input_shape=scatter_train[0].shape
+        L=args.L, s=args.s, r=args.r, input_shape=scatter_train[0].shape,
+        wavenumber_list_desc=wavenumber_list_desc,
+        wavenumber_low=args.wavenumber_low,
+        wavenumber_high=args.wavenumber_high,
+        # NOTE: num_resnet and num_cnn will default to 3 each
     )
     rng = jax.random.PRNGKey(888)
     params = Model.initialize(rng)
@@ -193,6 +204,7 @@ def main(args: argparse.Namespace) -> None:
     print("Number of trainable parameters:", param_count)
 
     # Train the model
+    print(f"Training the model...")
     train_model(
         init_value=args.init_value,
         transition_steps=args.transition_steps,
@@ -210,6 +222,7 @@ def main(args: argparse.Namespace) -> None:
     )
 
     # Test the model
+    print(f"Testing the model...")
     test_model(
         scatter_test=scatter_test,
         eta_test=eta_test,
