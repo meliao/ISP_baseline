@@ -158,6 +158,7 @@ def main(args: argparse.Namespace) -> None:
                 len(log_groups), len(job_groups)
             )
         )
+        logging.error("Group difference: %s", log_groups ^ job_groups)
         sys.exit(1)
 
     logging.info("All log and job files match.")

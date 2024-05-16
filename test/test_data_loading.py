@@ -84,6 +84,33 @@ class Test_load_data_from_dir:
         assert scatter_means.shape == (n_freqs,)
         assert scatter_stds.shape == (n_freqs,)
 
+    @ourdatapresent
+    def test_3(self) -> None:
+        L = 4
+        s = 12
+        n_pixels = (2**L) * s
+        wavenumbers = ["2", "4", "8"]
+        n_freqs = len(wavenumbers)
+        truncate_num = 531
+        (scatter, eta, eta_mean, eta_std, scatter_means, scatter_stds) = (
+            load_data_from_dir(
+                DIR_OURDATA_FORMAT,
+                True,
+                L,
+                s,
+                wavenumbers=wavenumbers,
+                truncate_num=truncate_num,
+                noise_to_sig_ratio=0.1,
+            )
+        )
+
+        assert eta.shape == (truncate_num, n_pixels, n_pixels)
+        assert scatter.shape == (truncate_num, 2, n_pixels * n_pixels, n_freqs)
+        assert eta_mean.shape == ()
+        assert eta_std.shape == ()
+        assert scatter_means.shape == (n_freqs,)
+        assert scatter_stds.shape == (n_freqs,)
+
 
 if __name__ == "__main__":
     pytest.main()

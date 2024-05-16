@@ -55,6 +55,11 @@ def setup_args() -> argparse.Namespace:
         type=int,
         default=None,
     )
+
+    parser.add_argument(
+        "-noise_to_sig_ratio", help="Noise to signal ratio", type=float, default=None
+    )
+
     # Model architecture parameters
     parser.add_argument("-L", help="Number of levels in the model", default=4, type=int)
     parser.add_argument("-s", help="Size parameter for the model", default=5, type=int)
@@ -146,6 +151,7 @@ def main(args: argparse.Namespace) -> None:
         blur_sigma=args.blur_sigma,
         wavenumbers=args.wavenumbers,
         truncate_num=args.truncate_num,
+        noise_to_sig_ratio=args.noise_to_sig_ratio,
     )
     print("Scatter train shape:", scatter_train.shape)
     print("Eta train shape:", eta_train.shape)
@@ -169,6 +175,7 @@ def main(args: argparse.Namespace) -> None:
             scatter_stds=scatter_stds_train,
             wavenumbers=args.wavenumbers,
             truncate_num=args.truncate_num_val,
+            noise_to_sig_ratio=args.noise_to_sig_ratio,
         )
     else:
         scatter_val = None
@@ -189,6 +196,7 @@ def main(args: argparse.Namespace) -> None:
         scatter_stds=scatter_stds_train,
         wavenumbers=args.wavenumbers,
         truncate_num=args.truncate_num,
+        noise_to_sig_ratio=args.noise_to_sig_ratio,
     )
 
     # Compile the model
