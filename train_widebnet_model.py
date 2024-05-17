@@ -57,6 +57,11 @@ def setup_args() -> argparse.Namespace:
         type=int,
         default=None,
     )
+
+    parser.add_argument(
+        "-noise_to_sig_ratio", help="Noise to signal ratio", type=float, default=None
+    )
+
     # Model architecture parameters
     parser.add_argument("-L", help="Number of levels in the model", default=4, type=int)
     parser.add_argument("-s", help="Size parameter for the model", default=5, type=int)
@@ -84,7 +89,10 @@ def setup_args() -> argparse.Namespace:
         "-batch_size", help="Batch size for training", type=int, default=32
     )
     parser.add_argument(
-        "-num_train_steps", help="Number of training steps", type=int, default=98_438
+        "-num_train_steps",
+        help="Number of training steps. Defaults to 150 passes through the full dataset.",
+        type=int,
+        default=None,
     )
 
     # Other hyperparams
@@ -125,7 +133,8 @@ def main(args: argparse.Namespace) -> None:
     print("Workdir:", workdir)
     os.makedirs(workdir, exist_ok=True)
 
-    fp_results = os.path.join(workdir, "results.txt")
+    fp_results_train = os.path.join(workdir, "train_results.txt")
+    fp_results_eval = os.path.join(workdir, "eval_results.txt")
 
     args.wavenumber_high = args.wavenumber_high \
         if args.wavenumber_high is not None else max(map(float, args.wavenumbers))
@@ -149,9 +158,14 @@ def main(args: argparse.Namespace) -> None:
         blur_sigma=args.blur_sigma,
         wavenumbers=args.wavenumbers,
         truncate_num=args.truncate_num,
+        noise_to_sig_ratio=args.noise_to_sig_ratio,
     )
     print("Scatter train shape:", scatter_train.shape)
     print("Eta train shape:", eta_train.shape)
+
+    # Default to using 150 passes through the dataset
+    if args.num_train_steps is None:
+        args.num_train_steps = int(150 * eta_train.shape[0] / args.batch_size)
 
     # Load validation data if path is specified
     if args.val_data_dir is not None:
@@ -168,6 +182,7 @@ def main(args: argparse.Namespace) -> None:
             scatter_stds=scatter_stds_train,
             wavenumbers=args.wavenumbers,
             truncate_num=args.truncate_num_val,
+            noise_to_sig_ratio=args.noise_to_sig_ratio,
         )
     else:
         scatter_val = None
@@ -188,6 +203,7 @@ def main(args: argparse.Namespace) -> None:
         scatter_stds=scatter_stds_train,
         wavenumbers=args.wavenumbers,
         truncate_num=args.truncate_num,
+        noise_to_sig_ratio=args.noise_to_sig_ratio,
     )
 
     # Compile the model
@@ -218,7 +234,8 @@ def main(args: argparse.Namespace) -> None:
         eta_eval=eta_val,
         scatter_eval=scatter_val,
         use_wandb=args.use_wandb,
-        results_fp=fp_results,
+        results_fp_train=fp_results_train,
+        results_fp_eval=fp_results_eval,
     )
 
     # Test the model
@@ -230,7 +247,9 @@ def main(args: argparse.Namespace) -> None:
         core_module=core_module,
         std_eta=eta_std_train,
         mean_eta=eta_mean_train,
+        results_fp_eval=fp_results_eval,
     )
+    print("FinishedFinished")
 
 
 if __name__ == "__main__":

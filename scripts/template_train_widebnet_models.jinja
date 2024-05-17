@@ -1,0 +1,46 @@
+#!/bin/bash
+
+#SBATCH --job-name={{ job_name }}
+#SBATCH --time={{ job_walltime }}
+#SBATCH --partition={{ partition }}
+#SBATCH --gres=gpu:{{ gpus }}
+#SBATCH --mem={{ mem }}
+#SBATCH --output={{ logs_folder }}/{{ job_name }}.out
+#SBATCH --error={{ logs_folder }}/{{ job_name }}.err
+#SBATCH --exclude={{ exclude_gpu }}
+
+echo "`date` Starting Job"
+echo "SLURM Info: Job name:${SLURM_JOB_NAME}"
+echo "    JOB ID: ${SLURM_JOB_ID}"
+echo "    Host list: ${SLURM_JOB_NODELIST}"
+echo "    CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES}"
+# /home/meliao/miniconda3/bin/conda init bash
+# /home/meliao/miniconda3/bin/conda activate hdf5_parsing
+
+which python
+
+{{ command }} \
+{{ train_data_dir }} \
+{{ val_data_dir }} \
+{{ test_data_dir }} \
+{{ wavenumbers }} \
+{{ truncate_num }} \
+{{ truncate_num_val }} \
+{{ L }} \
+{{ s }} \
+{{ r }} \
+{{ init_value }} \
+{{ transition_steps }} \
+{{ decay_rate }} \
+{{ batch_size }} \
+{{ num_train_steps }} \
+{{ blur_sigma }} \
+{{ blur_test_eta }} \
+{{ workdir }} \
+{{ use_wandb }} \
+{{ wandb_project_name }} \
+{{ wandb_entity }} \
+{{ noise_to_sig_ratio }}
+
+
+

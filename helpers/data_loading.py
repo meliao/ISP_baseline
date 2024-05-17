@@ -29,6 +29,7 @@ from pysteps.utils.spectral import rapsd
 from src import models
 from src import trainers
 from WideBNetModel import WideBNet, morton
+from helpers import add_noise
 
 
 def _load_eta_scatter_from_dir_Borong(
@@ -99,7 +100,7 @@ def load_field_in_hdf5(
     if retries >= 10:
         raise IOError(f"(lfih) Couldn't open file after 10 tries")
     try:
-        with h5py.File(fp_out, "a") as hf:
+        with h5py.File(fp_out, "r", locking=False) as hf:
             data_loaded = hf[key][()]
             data = data_loaded[idx_slice]
 
@@ -187,7 +188,12 @@ def _concat_all_files_in_dir_ours(
 
 
 def _load_eta_scatter_from_dir_ours(
-    dir_frmt: str, L: int, s: int, truncate_num: int, wavenumbers: Tuple[str]
+    dir_frmt: str,
+    L: int,
+    s: int,
+    truncate_num: int,
+    wavenumbers: Tuple[str],
+    noise_to_sig_ratio: float = None,
 ) -> Tuple[np.ndarray]:
 
     idx_flatten_to_morton = morton.flatten_to_morton_indices(L, s)
@@ -212,7 +218,16 @@ def _load_eta_scatter_from_dir_ours(
     # Scatter_all should have shape (n_samples, n_pixels, n_pixels, n_freqs)
     scatter_all = np.concatenate(
         [x[0][:, :, :, None] for x in scatter_eta_tuples], axis=-1
-    ).transpose(0,2,1,3) # OOT 2024-04-19: flip the s and r dimensions since we save (r,s) but need (s,r)
+    ).transpose(
+        0, 2, 1, 3
+    )  # OOT 2024-04-19: flip the s and r dimensions since we save (r,s) but need (s,r)
+
+    # Add noise if specified
+    if noise_to_sig_ratio is not None:
+        print("Adding Gaussian noise to scatter with N-S-R: ", noise_to_sig_ratio)
+        scatter_all = add_noise.add_noise_to_d(
+            scatter_all, noise_to_sig_ratio=noise_to_sig_ratio
+        )
 
     # Eta_all should have shape (n_samples, n_pixels, n_pixels)
     eta_all = scatter_eta_tuples[0][1]
@@ -248,6 +263,7 @@ def load_data_from_dir(
     scatter_means: np.ndarray = None,
     scatter_stds: np.ndarray = None,
     truncate_num: int = None,
+    noise_to_sig_ratio: float = None,
 ) -> Tuple[np.ndarray]:
     """Load data from a given directory.
     The inputs (scatter) will always be standardized.
@@ -267,6 +283,8 @@ def load_data_from_dir(
             Defaults to None.
         scatter_stds (np.ndarray, Optional): Standard deviation of the scatter data. Should have shape (n_freqs).
             Defaults to None.
+        noise_to_sig_ratio: (float, Optional): If specified, additive zero-mean Gaussian noise is applied to the
+            inputs scatter.
 
     Returns:
         Tuple[np.ndarray]: Tuple of the loaded data. Has the following arrays:
@@ -294,7 +312,7 @@ def load_data_from_dir(
             )
     except FileNotFoundError:
         scatter_pre, eta_pre = _load_eta_scatter_from_dir_ours(
-            dir, L, s, truncate_num, wavenumbers
+            dir, L, s, truncate_num, wavenumbers, noise_to_sig_ratio=noise_to_sig_ratio
         )
 
     n_freqs = scatter_pre.shape[-1]

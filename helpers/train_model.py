@@ -28,6 +28,7 @@ import wandb
 from src import models
 from src import trainers
 from WideBNetModel import WideBNet, morton
+from helpers.test_model import extract_line_by_field
 
 
 def _get_trainer(
@@ -92,6 +93,25 @@ class ValidationCallback(templates.Callback):
     def __init__(self, use_wandb: bool, out_fp: str) -> None:
         self.use_wandb = use_wandb
         self.out_fp = out_fp
+        workdir = os.path.dirname(out_fp)
+
+        self.current_best_val = np.inf
+        self.current_best_step = None
+        self.checkpoint_dir = os.path.join(workdir, "checkpoints")
+
+    def _remove_old_best_checkpoint_dir(self, previous_best_step: int) -> None:
+        if previous_best_step is not None:
+            previous_best_checkpoint_dir = os.path.join(
+                self.checkpoint_dir, str(previous_best_step)
+            )
+            # print(
+            #     "Checking for presence of previous best checkpoint: ",
+            #     previous_best_checkpoint_dir,
+            # )
+            if os.path.exists(previous_best_checkpoint_dir):
+                cmd = f"rm -r {previous_best_checkpoint_dir}"
+                # print("Running command: ", cmd)
+                os.system(cmd)
 
     def on_eval_batches_end(self, trainer, eval_metrics):
         cur_step = trainer.train_state.int_step
@@ -101,6 +121,32 @@ class ValidationCallback(templates.Callback):
             "step": cur_step,
             "eval_rrmse_mean": eval_rrmse_mean,
             "eval_rrmse_std": eval_rrmse_std,
+        }
+        write_result_to_file(self.out_fp, **out_dd)
+        if self.use_wandb:
+            wandb.log(out_dd)
+
+        if eval_rrmse_mean < self.current_best_val:
+            self._remove_old_best_checkpoint_dir(self.current_best_step)
+            self.current_best_val = eval_rrmse_mean
+            self.current_best_step = cur_step
+        else:
+            self._remove_old_best_checkpoint_dir(cur_step)
+
+
+class TrainCallback(templates.Callback):
+    def __init__(self, use_wandb: bool, out_fp: str) -> None:
+        self.use_wandb = use_wandb
+        self.out_fp = out_fp
+
+    def on_train_batches_end(self, trainer, train_metrics):
+        cur_step = trainer.train_state.int_step
+        train_loss = train_metrics["train_loss"].item()
+        train_loss_std = train_metrics["train_loss_std"].item()
+        out_dd = {
+            "step": cur_step,
+            "train_loss": train_loss,
+            "train_loss_std": train_loss_std,
         }
         write_result_to_file(self.out_fp, **out_dd)
         if self.use_wandb:
@@ -117,7 +163,8 @@ def train_model(
     workdir: str,
     eta_train: np.ndarray,
     scatter_train: np.ndarray,
-    results_fp: str,
+    results_fp_train: str,
+    results_fp_eval: str,
     use_wandb: bool,
     eta_eval: np.ndarray = None,
     scatter_eval: np.ndarray = None,
@@ -163,8 +210,12 @@ def train_model(
     else:
         eval_dataset = dataset
 
-    ckpt_interval = 2000  # @param
-    max_ckpt_to_keep = 3  # @param
+    n_train = eta_train.shape[0]
+    n_steps_per_epoch = n_train // batch_size
+    ckpt_interval = 5 * n_steps_per_epoch  # We are checkpointing every 5 epochs.
+
+    # ckpt_interval = 2000  # @param
+    # max_ckpt_to_keep = 3  # @param
 
     trainer = _get_trainer(
         init_value=init_value,
@@ -179,9 +230,9 @@ def train_model(
         workdir=workdir,
         total_train_steps=num_train_steps,
         metric_writer=metric_writers.create_default_writer(workdir, asynchronous=False),
-        metric_aggregation_steps=100,
+        metric_aggregation_steps=ckpt_interval,
         eval_dataloader=eval_dataset,
-        eval_every_steps=1000,
+        eval_every_steps=ckpt_interval,
         num_batches_per_eval=2,
         callbacks=(
             templates.TqdmProgressBar(
@@ -193,9 +244,10 @@ def train_model(
                 base_dir=workdir,
                 options=ocp.CheckpointManagerOptions(
                     save_interval_steps=ckpt_interval,
-                    max_to_keep=max_ckpt_to_keep,
+                    # max_to_keep=max_ckpt_to_keep,
                 ),
             ),
-            ValidationCallback(use_wandb=use_wandb, out_fp=results_fp),
+            ValidationCallback(use_wandb=use_wandb, out_fp=results_fp_eval),
+            TrainCallback(use_wandb=use_wandb, out_fp=results_fp_train),
         ),
     )
