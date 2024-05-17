@@ -26,7 +26,7 @@ python train_widebnet_model.py \
     -num_train_steps 1000 \
     -workdir $WORKDIR \
     --blur_test_eta \
-    -wavenumbers 10 \
+    -wavenumbers 5 10 \
     -wavenumber_low 0.0 \
     -wavenumber_high 10.0
 
