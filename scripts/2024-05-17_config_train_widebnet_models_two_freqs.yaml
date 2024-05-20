@@ -1,0 +1,91 @@
+---
+definitions:
+  command: python train_widebnet_model.py
+  template: template_train_widebnet_models.jinja
+
+  copy_to_item: true
+
+  default_arguments:
+    logs_folder: logs/train_widebnet
+    partition: "willett-contrib"
+    gpus: "a40:1"
+    mem: "50G"
+    job_walltime: "4:00:00"
+    exclude_gpu: "aa001,aa002"
+
+  submission:
+    !SLURMQueue
+      jobs_folder: jobs
+      job_name_key: job_name
+      fake_submission: false
+
+  constants:
+    dir_models: &DIR_MODELS "/net/projects/willettlab/meliao/recursive-linearization/models"
+    dir_results: &DIR_RESULTS "data/results"
+    dset_dir: &DSET_DIR "/net/projects/willettlab/meliao/recursive-linearization/dataset"
+    output_dir: &OUTPUT_DIR "/net/projects/willettlab/meliao/recursive-linearization/generated"
+    train_data_dir: &MEAS_DIR_TRAIN_FRMT "/net/projects/willettlab/meliao/recursive-linearization/dataset/train_measurements_nu_{}"
+    val_data_dir: &MEAS_DIR_VAL_FRMT "/net/projects/willettlab/meliao/recursive-linearization/dataset/val_measurements_nu_{}"
+    test_data_dir: &MEAS_DIR_TEST_FRMT "/net/projects/willettlab/meliao/recursive-linearization/dataset/test_measurements_nu_{}"
+
+arguments:
+  - !Scalar { name: train_data_dir, value: *MEAS_DIR_TRAIN_FRMT, prefix: "-train_data_dir" }
+  - !Scalar { name: val_data_dir, value: *MEAS_DIR_VAL_FRMT, prefix: "-val_data_dir" }
+  - !Scalar { name: test_data_dir, value: *MEAS_DIR_TEST_FRMT, prefix: "-test_data_dir" }
+  - !Scalar { name: wavenumbers, value: "4 8 16", prefix: "-wavenumbers"}
+  - !Scalar { name: truncate_num, value: 5000, prefix: "-truncate_num"}
+  - !Scalar { name: truncate_num_val, value: 500, prefix: "-truncate_num_val"}
+  - !Scalar { name: L, value: 4, prefix: "-L"}
+  - !Scalar { name: s, value: 12, prefix: "-s"}
+  - !Scalar { name: transition_steps, value: 2000, prefix: "-transition_steps" }
+  - !Scalar { name: use_wandb, value: "--use_wandb" }
+
+
+  - !Range
+    name: r
+    values: [ 2, 3, 5, 10, 15, 20, 30, 50]
+    prefix: "-r"
+    metadata_rules: [ !SaveValueInMetadata { path: r } ]
+
+  - !Range
+    name: init_value
+    values: [ 5e-04, 1e-03, 5e-03 ]
+    prefix: "-init_value"
+    metadata_rules: [ !SaveValueInMetadata { path: init_value}]
+
+  - !Range
+    name: decay_rate
+    values: [ 0.85, 0.95 ]
+    prefix: "-decay_rate"
+    metadata_rules: [ !SaveValueInMetadata { path: decay_rate }]
+
+  - !Range
+    name: blur_sigma
+    values: [ 0.75, 1.125, 1.5]
+    prefix: "-blur_sigma"
+    metadata_rules: [ !SaveValueInMetadata { path: blur_sigma }]
+
+  - !Range
+    name: batch_size
+    values: [16, 32] #, 64 ]
+    prefix: "-batch_size"
+    metadata_rules: [ !SaveValueInMetadata { path: batch_size }]
+
+  - !ArgumentFromMetadata
+    name: job_name
+    format_rule: "2024-05-17_train_WideBNet_2_freq_{r}_{init_value}_{decay_rate}_{blur_sigma}_{batch_size}"
+    sources: [
+      {path: r, destination: r},
+      {path: init_value, destination: init_value},
+      {path: decay_rate, destination: decay_rate},
+      {path: blur_sigma, destination: blur_sigma},
+      {path: batch_size, destination: batch_size},
+    ]
+    metadata_rules: [ !SaveValueInMetadata { path: job_name } ]
+
+  - !ArgumentFromMetadata
+    name: workdir
+    prefix: "-workdir"
+    prepend: *OUTPUT_DIR
+    format_rule: "{job_name}"
+    sources: [ {path: job_name, destination: job_name }, ]
